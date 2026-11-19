@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>STELLAR SANDS — 展示案内</title>
+  <style>
+    @font-face { font-family: 'SF Pro'; src: url('./font/SF-Pro-Subset.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100%; background: #070912; color: #e8ecf5;
+      font-family: 'SF Pro', -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+    header {
+      position: sticky; top: 0; height: 68px; padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between; z-index: 10;
+      background: rgba(7,9,18,0.65); backdrop-filter: blur(10px);
+    }
+    .back {
+      color: #e8ecf5; text-decoration: none; font-size: 13px; font-weight: 700;
+      letter-spacing: 0.1em; padding: 8px 14px; border: 1px solid rgba(232,236,245,0.28);
+      border-radius: 999px;
+    }
+    .tabs { display: flex; gap: 14px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+    .tabs a { color: rgba(232,236,245,0.55); text-decoration: none; }
+    .tabs a.active, .tabs a:hover { color: #e8ecf5; }
+    main {
+      position: relative; z-index: 5; max-width: 720px; margin: 64px auto 80px; padding: 0 24px;
+    }
+    .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.2em; color: #9bb8ff; margin-bottom: 12px; }
+    h1 { font-size: clamp(32px, 6vw, 54px); font-weight: 900; letter-spacing: 0.04em; margin-bottom: 18px; }
+    .lead { font-size: 16px; line-height: 1.8; color: rgba(232,236,245,0.82); margin-bottom: 32px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+    .card {
+      border: 1px solid rgba(232,236,245,0.18); border-radius: 16px; padding: 20px;
+      background: rgba(13,18,34,0.72); backdrop-filter: blur(8px);
+    }
+    .card h2 { font-size: 12px; letter-spacing: 0.14em; color: #9bb8ff; margin-bottom: 8px; }
+    .card p { font-size: 14px; line-height: 1.65; color: rgba(232,236,245,0.86); }
+  </style>
+</head>
+<body>
+  <canvas id="bg"></canvas>
+  <header>
+    <a class="back" href="./stellar.html?stage=4">← BACK</a>
+    <nav class="tabs">
+      <a href="?tab=planets" data-tab="planets">01 PLANETS</a>
+      <a href="?tab=nebula" data-tab="nebula">02 NEBULA</a>
+      <a href="?tab=visit" data-tab="visit">03 VISIT</a>
+    </nav>
+  </header>
+  <main>
+    <div class="tag" id="tag">ROOM 01</div>
+    <h1 id="title">PLANETS</h1>
+    <p class="lead" id="lead"></p>
+    <div class="grid" id="cards"></div>
+  </main>
+  <script>
+    const DATA = {
+      planets: {
+        tag: 'ROOM 01 / ORBITAL HALL',
+        title: 'PLANETS',
+        lead: '太陽系と系外惑星の重力を「星砂の軌道」で体験する展示室。約12万粒の光の粒が、惑星の公転周期に合わせて静かに巡ります。',
+        cards: [
+          ['HIGHLIGHT', '土星の輪を構成する氷と砂の粒子モデルを実寸比で投影。'],
+          ['DURATION', '1回あたり 約15分（常時入替制）'],
+          ['SOUND', '低周波の共鳴音とピアノによる環境音響']
+        ],
+        mode: 'orbit'
+      },
+      nebula: {
+        tag: 'ROOM 02 / DEEP SKY',
+        title: 'NEBULA',
+        lead: '星が生まれ、散り、再び集まる星雲の記録。指先で気流を起こすと、数万年分の星間塵の動きが目の前で再現されます。',
+        cards: [
+          ['HIGHLIGHT', 'オリオン大星雲の赤外線観測データを粒子で可視化。'],
+          ['INTERACTION', '画面内の星砂に波紋と渦を与えることが可能'],
+          ['CURATOR', '渋谷星砂館 天文アーカイブ室']
+        ],
+        mode: 'nebula'
+      },
+      visit: {
+        tag: 'ROOM 03 / INFORMATION',
+        title: 'VISIT & TICKETS',
+        lead: '企画展「STELLAR SANDS — 重力と光の記憶」の開館時間・アクセス・観覧料のご案内です。',
+        cards: [
+          ['HOURS', '10:00 – 21:00（最終入館 20:30 / 火曜休館）'],
+          ['ADMISSION', '一般 1,800円 / 学生 1,200円 / 小学生以下無料'],
+          ['ACCESS', '渋谷駅 ハチ公口より徒歩6分 渋谷星砂館 3F']
+        ],
+        mode: 'stars'
+      }
+    };
+
+    const tab = new URLSearchParams(location.search).get('tab');
+    const key = DATA[tab] ? tab : 'planets';
+    const d = DATA[key];
+    document.querySelectorAll('.tabs a').forEach(a => { if (a.dataset.tab === key) a.classList.add('active'); });
+    document.getElementById('tag').textContent = d.tag;
+    document.getElementById('title').textContent = d.title;
+    document.getElementById('lead').textContent = d.lead;
+    document.getElementById('cards').innerHTML = d.cards.map(([h, p]) => `<div class="card"><h2>${h}</h2><p>${p}</p></div>`).join('');
+
+    const canvas = document.getElementById('bg'), ctx = canvas.getContext('2d');
+    const pts = Array.from({ length: 240 }, (_, i) => ({
+      a: (i / 240) * Math.PI * 2,
+      r: 60 + Math.random() * 280,
+      s: (0.001 + Math.random() * 0.004) * (d.mode === 'nebula' ? 1.8 : 1),
+      x: Math.random(), y: Math.random(), z: 1 + Math.random() * 1.5
+    }));
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+
+    function loop() {
+      ctx.fillStyle = 'rgba(7,9,18,0.28)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const cx = canvas.width * 0.72, cy = canvas.height * 0.48;
+      ctx.fillStyle = 'rgba(232,213,181,0.75)';
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i];
+        if (d.mode === 'stars') {
+          p.y = (p.y + 0.0005 * p.z) % 1;
+          ctx.fillRect(p.x * canvas.width, p.y * canvas.height, p.z, p.z);
+        } else {
+          p.a += p.s;
+          const x = cx + Math.cos(p.a) * p.r;
+          const y = cy + Math.sin(p.a) * (d.mode === 'orbit' ? p.r * 0.45 : p.r * 0.85);
+          ctx.fillRect(x, y, p.z, p.z);
+        }
+      }
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
