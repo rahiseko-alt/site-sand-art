@@ -543,10 +543,11 @@
           const dist = Math.hypot(dx, dy) || 1;
           if (dist < radius) {
             const factor = Math.sin((dist / radius) * Math.PI);
-            // 50% stronger fluid swirl impulse across the grid
-            const swirlSpeed = factor * 36 * spinDir;
-            cell.xv += (-dy / dist) * swirlSpeed + vx * factor * 0.525;
-            cell.yv += (dx / dist) * swirlSpeed + vy * factor * 0.525;
+            // 1.5x stronger swirl + outward radial burst
+            const swirlSpeed = factor * 54 * spinDir;
+            const radialSpeed = factor * 24;
+            cell.xv += (-dy / dist) * swirlSpeed + (dx / dist) * radialSpeed + vx * factor * 0.7875;
+            cell.yv += (dx / dist) * swirlSpeed + (dy / dist) * radialSpeed + vy * factor * 0.7875;
           }
         }
       }
@@ -678,8 +679,8 @@
               if (d < 48) {
                 const safeD = d < 4 ? 48 : d;
                 const falloff = 48 / safeD;
-                cell.xv += dxPointer * falloff * 1.5;
-                cell.yv += dyPointer * falloff * 1.5;
+                cell.xv += dxPointer * falloff * 2.25;
+                cell.yv += dyPointer * falloff * 2.25;
               }
             }
           }
@@ -756,13 +757,13 @@
           e.xv += (0.5 * aU(e.up_left) + aU(e.left) + 0.5 * aU(e.down_left) - 0.5 * aU(e.up_right) - aU(e.right) - 0.5 * aU(e.down_right)) * 0.25;
           e.yv += (0.5 * aU(e.up_left) + aU(e.up) + 0.5 * aU(e.up_right) - 0.5 * aU(e.down_left) - aU(e.down) - 0.5 * aU(e.down_right)) * 0.25;
           const mag = Math.hypot(e.xv, e.yv);
-          if (mag > 100) {
-            const s = 100 / mag;
+          if (mag > 150) {
+            const s = 150 / mag;
             e.xv *= s;
             e.yv *= s;
           }
-          e.xv *= 0.951;
-          e.yv *= 0.951;
+          e.xv *= 0.946;
+          e.yv *= 0.946;
         }
       }
 
@@ -807,7 +808,7 @@
         s.yv += dy * downCell.yv * 0.09;
 
         const spd = Math.hypot(s.xv, s.yv);
-        const maxSpd = s.returnStartAt !== null ? 56.25 : 45;
+        const maxSpd = s.returnStartAt !== null ? 56.25 : 67.5;
         if (spd > maxSpd) {
           const sc = maxSpd / (spd || 1);
           s.xv *= sc;
