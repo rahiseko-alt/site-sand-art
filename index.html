@@ -508,10 +508,10 @@
           const dist = Math.hypot(dx, dy) || 1;
           if (dist < radius) {
             const factor = Math.sin((dist / radius) * Math.PI);
-            // Gentle authentic fluid swirl impulse across the grid
-            const swirlSpeed = factor * 24 * spinDir;
-            cell.xv += (-dy / dist) * swirlSpeed + vx * factor * 0.35;
-            cell.yv += (dx / dist) * swirlSpeed + vy * factor * 0.35;
+            // 50% stronger fluid swirl impulse across the grid
+            const swirlSpeed = factor * 36 * spinDir;
+            cell.xv += (-dy / dist) * swirlSpeed + vx * factor * 0.525;
+            cell.yv += (dx / dist) * swirlSpeed + vy * factor * 0.525;
           }
         }
       }
@@ -632,8 +632,8 @@
               if (d < 48) {
                 const safeD = d < 4 ? 48 : d;
                 const falloff = 48 / safeD;
-                cell.xv += dxPointer * falloff;
-                cell.yv += dyPointer * falloff;
+                cell.xv += dxPointer * falloff * 1.5;
+                cell.yv += dyPointer * falloff * 1.5;
               }
             }
           }
@@ -743,12 +743,12 @@
         const rightCell = cell.right || cell;
         const downCell = cell.down || cell;
 
-        s.xv += (1 - dx) * cell.xv * 0.06;
-        s.yv += (1 - dy) * cell.yv * 0.06;
-        s.xv += dx * rightCell.xv * 0.06;
-        s.yv += dx * rightCell.yv * 0.06;
-        s.xv += dy * downCell.xv * 0.06;
-        s.yv += dy * downCell.yv * 0.06;
+        s.xv += (1 - dx) * cell.xv * 0.09;
+        s.yv += (1 - dy) * cell.yv * 0.09;
+        s.xv += dx * rightCell.xv * 0.09;
+        s.yv += dx * rightCell.yv * 0.09;
+        s.xv += dy * downCell.xv * 0.09;
+        s.yv += dy * downCell.yv * 0.09;
 
         const spd = Math.hypot(s.xv, s.yv);
         if (spd > 45) {
