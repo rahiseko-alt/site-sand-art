@@ -57,7 +57,7 @@ function serveFile(req, res, filePath, customMime) {
     res.writeHead(200, {
       'Content-Type': contentType,
       'Content-Length': stats.size,
-      'Cache-Control': 'public, max-age=3600'
+      'Cache-Control': 'no-store, no-cache, must-revalidate'
     });
     fs.createReadStream(filePath).pipe(res);
   });
