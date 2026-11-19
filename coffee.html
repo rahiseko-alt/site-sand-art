@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>01 COFFEE — 落ちる砂のドリップ | SUNAGA GURUGURU</title>
+  <style>
+    @font-face { font-family: 'SF Pro'; src: url('./font/SF-Pro-Subset.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #14100d; color: #f4ebe1; font-family: 'SF Pro', -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+    header { position: fixed; top: 0; left: 0; right: 0; height: 68px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; z-index: 10; pointer-events: none; }
+    .back { pointer-events: auto; color: #f4ebe1; text-decoration: none; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; padding: 8px 14px; border: 1px solid rgba(244,235,225,0.28); border-radius: 999px; background: rgba(20,16,13,0.65); backdrop-filter: blur(8px); transition: background 0.2s; }
+    .back:hover { background: rgba(244,235,225,0.16); }
+    .nav { pointer-events: auto; display: flex; gap: 12px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; }
+    .nav a { color: rgba(244,235,225,0.6); text-decoration: none; }
+    .nav a.active, .nav a:hover { color: #f4ebe1; }
+    .hud { position: fixed; left: 24px; bottom: 24px; z-index: 10; pointer-events: none; max-width: 340px; }
+    .hud .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; color: #d4a373; margin-bottom: 6px; }
+    .hud h1 { font-size: 28px; font-weight: 900; letter-spacing: 0.04em; margin-bottom: 6px; }
+    .hud p { font-size: 13px; line-height: 1.5; color: rgba(244,235,225,0.72); }
+    .actions { position: fixed; right: 24px; bottom: 24px; z-index: 10; display: flex; gap: 10px; }
+    .btn { background: rgba(244,235,225,0.12); color: #f4ebe1; border: 1px solid rgba(244,235,225,0.3); border-radius: 999px; padding: 9px 18px; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; }
+    .btn:hover { background: rgba(244,235,225,0.24); }
+  </style>
+</head>
+<body>
+  <canvas id="sand"></canvas>
+  <header>
+    <a class="back" href="./index.html?stage=5">← BACK</a>
+    <nav class="nav">
+      <a class="active" href="./coffee.html">01 COFFEE</a>
+      <a href="./culture.html">02 CULTURE</a>
+      <a href="./rituals.html">03 RITUALS</a>
+      <a href="./mix.html">MIX</a>
+    </nav>
+  </header>
+  <div class="hud">
+    <div class="tag">01 / FALLING SAND DRIP</div>
+    <h1>COFFEE SAND</h1>
+    <p>ドラッグすると焙煎された砂が落ちて積もります。下の受け皿に砂の山を作ってみてください。</p>
+  </div>
+  <div class="actions">
+    <button class="btn" id="pourBtn">AUTO POUR</button>
+    <button class="btn" id="clearBtn">RESET</button>
+  </div>
+  <script>
+    const canvas = document.getElementById('sand');
+    const ctx = canvas.getContext('2d');
+    const CELL = 4;
+    let cols = 0, rows = 0, grid = null;
+    const palette = ['#d4a373', '#b07d52', '#8c5a3c', '#e6ccb2', '#6f452c'];
+    let pouring = false, px = 0, py = 0, autoPour = true;
+
+    function initGrid() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      cols = Math.floor(canvas.width / CELL);
+      rows = Math.floor(canvas.height / CELL);
+      grid = new Uint8Array(cols * rows);
+      // Draw a subtle cup wall in the grid at bottom center (code 255 = static wall)
+      const cx = Math.floor(cols / 2);
+      const cupW = Math.min(Math.floor(cols * 0.28), 60);
+      const cupTop = Math.floor(rows * 0.62);
+      const cupBot = Math.floor(rows * 0.86);
+      for (let y = cupTop; y <= cupBot; y++) {
+        const taper = Math.floor(((y - cupTop) / (cupBot - cupTop)) * (cupW * 0.22));
+        grid[y * cols + (cx - cupW + taper)] = 255;
+        grid[y * cols + (cx + cupW - taper)] = 255;
+      }
+      for (let x = cx - cupW + Math.floor(cupW * 0.22); x <= cx + cupW - Math.floor(cupW * 0.22); x++) {
+        grid[cupBot * cols + x] = 255;
+      }
+    }
+
+    function spawnSand(sx, sy, radius = 3) {
+      const gx = Math.floor(sx / CELL), gy = Math.floor(sy / CELL);
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          if (dx * dx + dy * dy > radius * radius) continue;
+          if (Math.random() > 0.55) continue;
+          const x = gx + dx, y = gy + dy;
+          if (x > 1 && x < cols - 2 && y > 1 && y < rows - 2 && grid[y * cols + x] === 0) {
+            grid[y * cols + x] = 1 + Math.floor(Math.random() * palette.length);
+          }
+        }
+      }
+    }
+
+    function step() {
+      if (pouring) spawnSand(px, py, 4);
+      else if (autoPour) spawnSand(canvas.width / 2 + Math.sin(performance.now() * 0.002) * 38, canvas.height * 0.18, 2);
+
+      for (let y = rows - 2; y >= 0; y--) {
+        const dir = (y % 2 === 0) ? 1 : -1;
+        for (let i = 0; i < cols; i++) {
+          const x = dir > 0 ? i : (cols - 1 - i);
+          const idx = y * cols + x;
+          const v = grid[idx];
+          if (v === 0 || v === 255) continue;
+          const below = (y + 1) * cols + x;
+          if (grid[below] === 0) {
+            grid[below] = v; grid[idx] = 0;
+          } else {
+            const leftOk = x > 0 && grid[below - 1] === 0;
+            const rightOk = x < cols - 1 && grid[below + 1] === 0;
+            if (leftOk && rightOk) {
+              grid[below + (Math.random() < 0.5 ? -1 : 1)] = v; grid[idx] = 0;
+            } else if (leftOk) {
+              grid[below - 1] = v; grid[idx] = 0;
+            } else if (rightOk) {
+              grid[below + 1] = v; grid[idx] = 0;
+            }
+          }
+        }
+      }
+    }
+
+    function draw() {
+      ctx.fillStyle = '#14100d';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const v = grid[y * cols + x];
+          if (v === 0) continue;
+          ctx.fillStyle = v === 255 ? 'rgba(244,235,225,0.45)' : palette[v - 1];
+          ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+        }
+      }
+    }
+
+    function loop() { step(); draw(); requestAnimationFrame(loop); }
+
+    canvas.addEventListener('pointerdown', (e) => { pouring = true; autoPour = false; px = e.clientX; py = e.clientY; });
+    canvas.addEventListener('pointermove', (e) => { px = e.clientX; py = e.clientY; });
+    window.addEventListener('pointerup', () => { pouring = false; });
+    document.getElementById('clearBtn').addEventListener('click', () => { autoPour = false; initGrid(); });
+    document.getElementById('pourBtn').addEventListener('click', () => { autoPour = !autoPour; });
+    window.addEventListener('resize', initGrid);
+
+    initGrid();
+    loop();
+  </script>
+</body>
+</html>

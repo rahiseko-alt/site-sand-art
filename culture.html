@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>02 CULTURE — 砂紋と波紋 | SUNAGA GURUGURU</title>
+  <style>
+    @font-face { font-family: 'SF Pro'; src: url('./font/SF-Pro-Subset.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #f2efe9; color: #181512; font-family: 'SF Pro', -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: pointer; }
+    header { position: fixed; top: 0; left: 0; right: 0; height: 68px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; z-index: 10; pointer-events: none; }
+    .back { pointer-events: auto; color: #181512; text-decoration: none; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; padding: 8px 14px; border: 1px solid rgba(24,21,18,0.22); border-radius: 999px; background: rgba(242,239,233,0.75); backdrop-filter: blur(8px); }
+    .back:hover { background: rgba(24,21,18,0.08); }
+    .nav { pointer-events: auto; display: flex; gap: 12px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; }
+    .nav a { color: rgba(24,21,18,0.5); text-decoration: none; }
+    .nav a.active, .nav a:hover { color: #181512; }
+    .hud { position: fixed; left: 24px; bottom: 24px; z-index: 10; pointer-events: none; max-width: 340px; }
+    .hud .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; color: #7a5c43; margin-bottom: 6px; }
+    .hud h1 { font-size: 28px; font-weight: 900; letter-spacing: 0.04em; margin-bottom: 6px; }
+    .hud p { font-size: 13px; line-height: 1.5; color: rgba(24,21,18,0.7); }
+  </style>
+</head>
+<body>
+  <canvas id="zen"></canvas>
+  <header>
+    <a class="back" href="./index.html?stage=5">← BACK</a>
+    <nav class="nav">
+      <a href="./coffee.html">01 COFFEE</a>
+      <a class="active" href="./culture.html">02 CULTURE</a>
+      <a href="./rituals.html">03 RITUALS</a>
+      <a href="./mix.html">MIX</a>
+    </nav>
+  </header>
+  <div class="hud">
+    <div class="tag">02 / KARESANSUI RIPPLES</div>
+    <h1>CULTURE GARDEN</h1>
+    <p>クリックやドラッグで枯山水の砂紋に波紋が広がります。</p>
+  </div>
+  <script>
+    const canvas = document.getElementById('zen');
+    const ctx = canvas.getContext('2d');
+    let dots = [];
+    const ripples = [];
+
+    function init() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      dots = [];
+      const gap = window.innerWidth < 768 ? 14 : 16;
+      for (let y = gap / 2; y < canvas.height; y += gap) {
+        for (let x = gap / 2; x < canvas.width; x += gap) {
+          dots.push({ ox: x, oy: y });
+        }
+      }
+    }
+
+    function addRipple(x, y) {
+      ripples.push({ x, y, r: 0, amp: 16 });
+      if (ripples.length > 8) ripples.shift();
+    }
+
+    function loop() {
+      ctx.fillStyle = '#f2efe9';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        ripples[i].r += 6.5;
+        ripples[i].amp *= 0.975;
+        if (ripples[i].amp < 0.2) ripples.splice(i, 1);
+      }
+
+      ctx.fillStyle = '#2b241d';
+      const now = performance.now() * 0.0015;
+      for (let i = 0; i < dots.length; i++) {
+        const d = dots[i];
+        let dx = 0, dy = Math.sin(d.ox * 0.015 + now) * 1.6;
+        let size = 1.6;
+        for (let j = 0; j < ripples.length; j++) {
+          const rp = ripples[j];
+          const vx = d.ox - rp.x, vy = d.oy - rp.y;
+          const dist = Math.hypot(vx, vy) || 1;
+          const band = Math.exp(-Math.pow((dist - rp.r) / 42, 2));
+          if (band > 0.02) {
+            const push = band * rp.amp * Math.sin((dist - rp.r) * 0.12);
+            dx += (vx / dist) * push;
+            dy += (vy / dist) * push;
+            size += band * 1.4;
+          }
+        }
+        ctx.fillRect(d.ox + dx - size / 2, d.oy + dy - size / 2, size, size);
+      }
+      requestAnimationFrame(loop);
+    }
+
+    let down = false;
+    canvas.addEventListener('pointerdown', (e) => { down = true; addRipple(e.clientX, e.clientY); });
+    canvas.addEventListener('pointermove', (e) => { if (down && Math.random() < 0.35) addRipple(e.clientX, e.clientY); });
+    window.addEventListener('pointerup', () => { down = false; });
+    window.addEventListener('resize', init);
+
+    init();
+    addRipple(window.innerWidth / 2, window.innerHeight / 2);
+    loop();
+  </script>
+</body>
+</html>
