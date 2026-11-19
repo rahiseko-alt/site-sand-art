@@ -145,6 +145,21 @@
     /**
      * All stages that emerge one after another every time you mix (Sujata) the sand!
      */
+    const STAGE_PALETTES = [
+      // 01: Aurora Cyan -> Electric Violet -> Champagne Gold
+      [[0.22, 0.92, 1.0], [0.58, 0.45, 1.0], [1.0, 0.82, 0.42]],
+      // 02: Sunset Coral -> Warm Gold -> Mint Cyan
+      [[1.0, 0.46, 0.36], [1.0, 0.84, 0.44], [0.30, 0.94, 0.84]],
+      // 03 (light bg): Deep Indigo -> Crimson Rose -> Emerald
+      [[0.12, 0.22, 0.62], [0.76, 0.14, 0.34], [0.06, 0.48, 0.38]],
+      // 04: Ruby Rose -> Amber Gold -> Sky Pearl
+      [[0.98, 0.42, 0.56], [1.0, 0.78, 0.36], [0.68, 0.88, 1.0]],
+      // 05 (light bg): Royal Navy -> Terracotta -> Forest Teal
+      [[0.14, 0.20, 0.48], [0.72, 0.28, 0.16], [0.08, 0.42, 0.36]],
+      // 06: Emerald -> Sky Blue -> Magenta Rose
+      [[0.26, 0.96, 0.72], [0.36, 0.72, 1.0], [0.98, 0.44, 0.82]]
+    ];
+
     const STAGES = [
       {
         name: "01",
@@ -485,6 +500,49 @@
     const DEFAULT_HINT = '指やマウスで文字を触って混ぜる（スジャータする）たびに、混ざった砂が「次の違う文字」になって浮かび上がります';
     const CARD_HINT = 'カードをクリック／タップで別ページへ移動します（ドラッグで混ぜると次の形へ）';
 
+    let targetColorArray = null;
+    let particleShade = null;
+    let colorTransitionFrames = 0;
+
+    function samplePaletteColor(palette, u, shade) {
+      const t = Math.min(0.9999, Math.max(0, u)) * (palette.length - 1);
+      const idx = t | 0;
+      const frac = t - idx;
+      const c0 = palette[idx], c1 = palette[idx + 1];
+      return [
+        Math.min(1, (c0[0] + (c1[0] - c0[0]) * frac) * shade),
+        Math.min(1, (c0[1] + (c1[1] - c0[1]) * frac) * shade),
+        Math.min(1, (c0[2] + (c1[2] - c0[2]) * frac) * shade)
+      ];
+    }
+
+    function assignStageColors(stageIdx, immediate) {
+      if (!targetColorArray || !au.length) return;
+      const palette = STAGE_PALETTES[stageIdx % STAGE_PALETTES.length];
+      const w = viewWidth || 1, h = viewHeight || 1;
+      for (let i = 0; i < au.length; i++) {
+        const p = au[i];
+        // Map gradient across central glyph area so full multi-color palette shines
+        const nx = Math.min(1, Math.max(0, (p.ox / w - 0.28) / 0.44));
+        const ny = Math.min(1, Math.max(0, (p.oy / h - 0.28) / 0.44));
+        const u = 0.72 * nx + 0.28 * ny;
+        const [r, g, b] = samplePaletteColor(palette, u, particleShade[i]);
+        targetColorArray[3 * i] = r;
+        targetColorArray[3 * i + 1] = g;
+        targetColorArray[3 * i + 2] = b;
+        if (immediate) {
+          colArray[3 * i] = r;
+          colArray[3 * i + 1] = g;
+          colArray[3 * i + 2] = b;
+        }
+      }
+      if (immediate && geometry) {
+        geometry.attributes.color.needsUpdate = true;
+      } else {
+        colorTransitionFrames = 110;
+      }
+    }
+
     function updateStageUI(stageIdx) {
       const st = STAGES[stageIdx];
       bgLayer.style.backgroundColor = st.bg;
@@ -527,6 +585,7 @@
         // Reset returnStartAt so the particle swirls freely in the fluid before settling into its NEW (ox, oy)!
         p.returnStartAt = null;
       }
+      assignStageColors(currentStage, false);
 
       // Also propagate the user's mixing swirl across the rest of the text so the whole word swirls & reforms together!
       const cx = viewWidth / 2;
@@ -577,6 +636,8 @@
       au = [];
       posArray = new Float32Array(3 * PARTICLE_COUNT);
       colArray = new Float32Array(3 * PARTICLE_COUNT);
+      targetColorArray = new Float32Array(3 * PARTICLE_COUNT);
+      particleShade = new Float32Array(PARTICLE_COUNT);
 
       const initRGB = STAGES[0].particleRGB;
       colorCurrent = [...initRGB];
@@ -588,19 +649,17 @@
         const py = pt.y + (Math.random() - 0.5) * 0.9;
         const p = new SujataParticle(px, py);
         au.push(p);
+        particleShade[i] = 0.80 + Math.random() * 0.40;
 
         posArray[3 * i] = px;
         posArray[3 * i + 1] = py;
         posArray[3 * i + 2] = 0;
-
-        colArray[3 * i] = initRGB[0];
-        colArray[3 * i + 1] = initRGB[1];
-        colArray[3 * i + 2] = initRGB[2];
       }
 
       geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
       geometry.setAttribute('color', new THREE.BufferAttribute(colArray, 3));
+      assignStageColors(0, true);
 
       const ptSize = (window.innerWidth <= 1024 ? 0.55 : 0.8) * Math.min(window.devicePixelRatio || 1, 2);
       material = new THREE.PointsMaterial({
@@ -702,19 +761,12 @@
         hasSwitchedForCurrentMix = false;
       }
 
-      // 3. Smooth color interpolation when stage changes
-      const dcR = colorTarget[0] - colorCurrent[0];
-      const dcG = colorTarget[1] - colorCurrent[1];
-      const dcB = colorTarget[2] - colorCurrent[2];
-      if (Math.abs(dcR) > 0.002 || Math.abs(dcG) > 0.002 || Math.abs(dcB) > 0.002) {
-        colorCurrent[0] += dcR * 0.06;
-        colorCurrent[1] += dcG * 0.06;
-        colorCurrent[2] += dcB * 0.06;
-        const rC = colorCurrent[0], gC = colorCurrent[1], bC = colorCurrent[2];
-        for (let i = 0; i < au.length; i++) {
-          colArray[3 * i] = rC;
-          colArray[3 * i + 1] = gC;
-          colArray[3 * i + 2] = bC;
+      // 3. Smooth per-particle gradient color interpolation when stage changes
+      if (colorTransitionFrames > 0) {
+        colorTransitionFrames--;
+        const len3 = au.length * 3;
+        for (let j = 0; j < len3; j++) {
+          colArray[j] += (targetColorArray[j] - colArray[j]) * 0.08;
         }
         geometry.attributes.color.needsUpdate = true;
       }
@@ -962,15 +1014,7 @@
           posArray[3 * i + 1] = au[i].y;
         }
         geometry.attributes.position.needsUpdate = true;
-        const initRGB = STAGES[currentStage].particleRGB;
-        colorCurrent = [...initRGB];
-        colorTarget = [...initRGB];
-        for (let i = 0; i < au.length; i++) {
-          colArray[3 * i] = initRGB[0];
-          colArray[3 * i + 1] = initRGB[1];
-          colArray[3 * i + 2] = initRGB[2];
-        }
-        geometry.attributes.color.needsUpdate = true;
+        assignStageColors(currentStage, true);
       }
       updateStageUI(currentStage);
       requestAnimationFrame(renderLoop);
