@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>STELLAR SANDS — 星砂天文台 | Exhibition 2026</title>
+  <style>
+    @font-face {
+      font-family: 'SF Pro';
+      src: url('./font/SF-Pro-Subset.woff2') format('woff2');
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: swap;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #05070d;
+      font-family: 'SF Pro', -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    #bgLayer {
+      position: fixed; inset: 0; z-index: 1;
+      background-color: #05070d;
+      transition: background-color 1.1s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    #canvas {
+      position: fixed; inset: 0; width: 100%; height: 100%; display: block;
+      z-index: 30; pointer-events: none;
+    }
+    #particleOverlay {
+      position: fixed; inset: 0; z-index: 20; touch-action: none; cursor: crosshair;
+    }
+    header {
+      position: fixed; top: 0; left: 0; right: 0; height: 68px; padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      z-index: 40; pointer-events: none; color: #e8ecf5; transition: color 0.8s ease;
+    }
+    .brand-title { font-size: 13px; font-weight: 700; letter-spacing: 0.16em; opacity: 0.85; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .home-link {
+      pointer-events: auto; font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      color: inherit; text-decoration: none; opacity: 0.7;
+      border: 1px solid currentColor; border-radius: 999px; padding: 5px 12px;
+    }
+    .home-link:hover { opacity: 1; }
+    .stage-badge { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; opacity: 0.85; }
+    .bottom-hint {
+      position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+      z-index: 40; text-align: center; color: #e8ecf5; transition: color 0.8s ease;
+      pointer-events: none; font-size: 13px; font-weight: 500; letter-spacing: 0.06em;
+      opacity: 0.7; width: 90%;
+    }
+  </style>
+  <script src="./three.min.js"></script>
+</head>
+<body>
+  <div id="bgLayer"></div>
+  <canvas id="canvas"></canvas>
+  <div id="particleOverlay"></div>
+
+  <header id="uiHeader">
+    <div class="brand-title">STELLAR SANDS — 星砂天文台</div>
+    <div class="header-right">
+      <a class="home-link" href="./index.html">DEMO TOP</a>
+      <div class="stage-badge" id="stageBadge">01 / 05</div>
+    </div>
+  </header>
+
+  <div class="bottom-hint" id="bottomHint">
+    画面を触って星砂を混ぜると、次の展示案内へ移ります
+  </div>
+
+  <script>
+    function drawRoundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    const STAGES = [
+      {
+        name: "01",
+        bg: "#05070d",
+        uiColor: "#e8ecf5",
+        particleRGB: [0.91, 0.84, 0.71],
+        draw(ctx, w, h) {
+          const isMobile = w < 768;
+          const cx = w / 2, cy = h * 0.45;
+          const r = isMobile ? Math.min(w * 0.25, 95) : 120;
+          ctx.lineWidth = isMobile ? 8 : 11;
+          ctx.strokeStyle = "#fff";
+          ctx.beginPath();
+          ctx.arc(cx, cy - 28, r, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.save();
+          ctx.translate(cx, cy - 28);
+          ctx.rotate(-0.42);
+          ctx.lineWidth = isMobile ? 6 : 8;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 1.55, r * 0.42, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+
+          ctx.font = `900 ${isMobile ? 28 : 44}px "SF Pro", sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("STELLAR SANDS", cx, cy + r + 52);
+        }
+      },
+      {
+        name: "02",
+        bg: "#0b1021",
+        uiColor: "#f0e6d2",
+        particleRGB: [0.96, 0.92, 0.84],
+        draw(ctx, w, h) {
+          const isMobile = w < 768;
+          const fs = isMobile ? Math.min(w * 0.11, 40) : Math.min(w * 0.065, 74);
+          ctx.font = `900 ${Math.round(fs)}px "Hiragino Sans", "Noto Sans JP", sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("星は砂になり、", w / 2, h * 0.41);
+          ctx.fillText("時を刻む。", w / 2, h * 0.55);
+        }
+      },
+      {
+        name: "03",
+        bg: "#f4f1ea",
+        uiColor: "#141824",
+        particleRGB: [0.08, 0.10, 0.16],
+        draw(ctx, w, h) {
+          const isMobile = w < 768;
+          const fs1 = isMobile ? Math.min(w * 0.1, 38) : Math.min(w * 0.06, 68);
+          ctx.font = `900 ${Math.round(fs1)}px "SF Pro", sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("EXHIBITION 2026", w / 2, h * 0.41);
+          ctx.font = `800 ${Math.round(fs1 * 0.55)}px "Hiragino Sans", "Noto Sans JP", sans-serif`;
+          ctx.fillText("重力と光の記憶  —  渋谷星砂館", w / 2, h * 0.55);
+        }
+      },
+      {
+        name: "04",
+        bg: "#070912",
+        uiColor: "#e8ecf5",
+        particleRGB: [0.85, 0.90, 1.0],
+        getButtons(w, h) {
+          const isMobile = w < 768;
+          const urls = [
+            "./stellar-exhibit.html?tab=planets",
+            "./stellar-exhibit.html?tab=nebula",
+            "./stellar-exhibit.html?tab=visit"
+          ];
+          const nums = ["01", "02", "03"];
+          const titles = ["PLANETS", "NEBULA", "VISIT"];
+          const buttons = [];
+          if (isMobile) {
+            const cw = Math.min(w * 0.84, 310);
+            const ch = 90;
+            const gap = 18;
+            const startY = h * 0.48 - (ch * 3 + gap * 2) / 2;
+            const cx = (w - cw) / 2;
+            for (let i = 0; i < 3; i++) {
+              buttons.push({ x: cx, y: startY + i * (ch + gap), w: cw, h: ch, url: urls[i], num: nums[i], title: titles[i] });
+            }
+          } else {
+            const cw = Math.min((w * 0.8) / 3, 250);
+            const ch = cw * 1.3;
+            const gap = 28;
+            const startX = (w - (cw * 3 + gap * 2)) / 2;
+            const cy = h * 0.48 - ch / 2;
+            for (let i = 0; i < 3; i++) {
+              buttons.push({ x: startX + i * (cw + gap), y: cy, w: cw, h: ch, url: urls[i], num: nums[i], title: titles[i] });
+            }
+          }
+          return buttons;
+        },
+        draw(ctx, w, h) {
+          const isMobile = w < 768;
+          const btns = this.getButtons(w, h);
+          for (let i = 0; i < btns.length; i++) {
+            const b = btns[i];
+            ctx.lineWidth = isMobile ? 8 : 10;
+            ctx.strokeStyle = "#fff";
+            drawRoundRect(ctx, b.x, b.y, b.w, b.h, isMobile ? 16 : 20);
+            ctx.stroke();
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            if (isMobile) {
+              ctx.font = `900 24px "SF Pro", sans-serif`;
+              ctx.fillText(`${b.num}  ${b.title}`, b.x + b.w / 2, b.y + b.h / 2);
+            } else {
+              ctx.font = `900 40px "SF Pro", sans-serif`;
+              ctx.fillText(b.num, b.x + b.w / 2, b.y + b.h * 0.36);
+              ctx.font = `800 24px "SF Pro", sans-serif`;
+              ctx.fillText(b.title, b.x + b.w / 2, b.y + b.h * 0.72);
+            }
+          }
+        }
+      },
+      {
+        name: "05",
+        bg: "#120f0c",
+        uiColor: "#f3e5d0",
+        particleRGB: [0.95, 0.84, 0.65],
+        draw(ctx, w, h) {
+          const isMobile = w < 768;
+          const fs = isMobile ? Math.min(w * 0.11, 42) : Math.min(w * 0.068, 78);
+          ctx.font = `900 ${Math.round(fs)}px "Hiragino Sans", "Noto Sans JP", sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("夜空を混ぜよう。", w / 2, h * 0.42);
+          ctx.font = `800 ${Math.round(fs * 0.44)}px "SF Pro", sans-serif`;
+          ctx.fillText("TOUCH THE SKY", w / 2, h * 0.56);
+        }
+      }
+    ];
+
+    class FluidCell {
+      constructor(x, y, r) {
+        this.x = x; this.y = y; this.r = r;
+        this.xv = 0; this.yv = 0; this.pressure = 0;
+        this.up = this.down = this.left = this.right = null;
+        this.up_left = this.up_right = this.down_left = this.down_right = null;
+      }
+    }
+    class SujataParticle {
+      constructor(x, y) {
+        this.x = this.px = this.ox = x;
+        this.y = this.py = this.oy = y;
+        this.xv = 0; this.yv = 0; this.returnStartAt = null;
+      }
+    }
+
+    const canvas = document.getElementById('canvas');
+    const overlay = document.getElementById('particleOverlay');
+    const bgLayer = document.getElementById('bgLayer');
+    const uiHeader = document.getElementById('uiHeader');
+    const bottomHint = document.getElementById('bottomHint');
+    const stageBadge = document.getElementById('stageBadge');
+
+    let viewWidth = window.innerWidth, viewHeight = window.innerHeight;
+    let numCols = 0, numRows = 0, af = [], au = [];
+    let posArray = null, colArray = null;
+    let renderer, scene, camera, geometry, material, pointsMesh;
+    const PARTICLE_COUNT = window.innerWidth <= 1024 ? 75000 : 120000;
+    let currentStage = 0, precomputedStageTargets = [];
+    let colorCurrent = [1, 1, 1], colorTarget = [1, 1, 1];
+    const aV = { x: -9999, y: -9999, px: -9999, py: -9999 };
+    const aG = { targetX: 0, targetY: 0, currentX: 0, currentY: 0 };
+    const aw = { lastAt: 0 };
+    let ak = performance.now() * 0.001;
+    let mixDistanceAccum = 0, hasSwitchedForCurrentMix = false, lastStageSwitchAt = 0;
+    const aX = new THREE.Matrix4(), aY = new THREE.Matrix4(), aj = new THREE.Matrix4();
+    const aq = new THREE.Euler(), aK = new THREE.Matrix4().makeScale(1, -1, 1);
+
+    function initFluidGrid() {
+      numCols = Math.ceil(viewWidth / 10);
+      numRows = Math.ceil(viewHeight / 10);
+      af = [];
+      for (let c = 0; c < numCols; c++) {
+        af[c] = [];
+        for (let r = 0; r < numRows; r++) af[c][r] = new FluidCell(10 * c, 10 * r, 10);
+      }
+      for (let c = 0; c < numCols; c++) {
+        for (let r = 0; r < numRows; r++) {
+          const cell = af[c][r], up = r - 1, down = r + 1, left = c - 1, right = c + 1;
+          cell.up = up >= 0 ? af[c][up] : null;
+          cell.down = down < numRows ? af[c][down] : null;
+          cell.left = left >= 0 ? af[left][r] : null;
+          cell.right = right < numCols ? af[right][r] : null;
+          cell.up_left = (up >= 0 && left >= 0) ? af[left][up] : null;
+          cell.up_right = (up >= 0 && right < numCols) ? af[right][up] : null;
+          cell.down_left = (down < numRows && left >= 0) ? af[left][down] : null;
+          cell.down_right = (down < numRows && right < numCols) ? af[right][down] : null;
+        }
+      }
+    }
+
+    function sampleStagePoints(stageIdx) {
+      const stage = STAGES[stageIdx];
+      const isMobile = viewWidth < 1024;
+      const superSample = isMobile ? 1.25 : 1.15;
+      const rw = Math.floor(viewWidth * superSample);
+      const rh = Math.floor(viewHeight * superSample);
+      const off = document.createElement('canvas');
+      off.width = rw; off.height = rh;
+      const ctx = off.getContext('2d', { willReadFrequently: true });
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, rw, rh);
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff';
+      ctx.save(); ctx.scale(superSample, superSample);
+      stage.draw(ctx, viewWidth, viewHeight);
+      ctx.restore();
+      const img = ctx.getImageData(0, 0, rw, rh).data;
+      const rawPts = [], step = isMobile ? 1 : 2;
+      for (let y = 0; y < rh; y += step) {
+        for (let x = 0; x < rw; x += step) {
+          if (img[(y * rw + x) * 4] > 128) {
+            rawPts.push({ x: (x + (Math.random() - 0.5) * step) / superSample, y: (y + (Math.random() - 0.5) * step) / superSample });
+          }
+        }
+      }
+      if (rawPts.length === 0) rawPts.push({ x: viewWidth / 2, y: viewHeight / 2 });
+      rawPts.sort((a, b) => (a.x - b.x) || (a.y - b.y));
+      return rawPts;
+    }
+
+    function precomputeAllStages() { precomputedStageTargets = STAGES.map((_, idx) => sampleStagePoints(idx)); }
+
+    function getHitButton(x, y) {
+      const st = STAGES[currentStage];
+      if (!st || !st.getButtons) return null;
+      const btns = st.getButtons(viewWidth, viewHeight);
+      for (let i = 0; i < btns.length; i++) {
+        const b = btns[i];
+        if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return b;
+      }
+      return null;
+    }
+
+    const DEFAULT_HINT = '画面を触って星砂を混ぜると、次の展示案内へ移ります';
+    const CARD_HINT = '展示室カードをクリック／タップで詳細ページへ（ドラッグで次へ）';
+
+    function updateStageUI(stageIdx) {
+      const st = STAGES[stageIdx];
+      bgLayer.style.backgroundColor = st.bg;
+      uiHeader.style.color = st.uiColor;
+      bottomHint.style.color = st.uiColor;
+      bottomHint.textContent = st.getButtons ? CARD_HINT : DEFAULT_HINT;
+      stageBadge.textContent = `0${stageIdx + 1} / 0${STAGES.length}`;
+      colorTarget = [...st.particleRGB];
+      if (!st.getButtons) overlay.style.cursor = 'crosshair';
+    }
+
+    function advanceHomeTargetsToNextStage(touchX, touchY, vx, vy) {
+      const now = performance.now();
+      if (now - lastStageSwitchAt < 1100) return;
+      lastStageSwitchAt = now;
+      currentStage = (currentStage + 1) % STAGES.length;
+      updateStageUI(currentStage);
+      const targetPts = precomputedStageTargets[currentStage], tLen = targetPts.length, pLen = au.length;
+      const sortedIndices = au.map((_, idx) => idx).sort((i, j) => (au[i].x - au[j].x) || (au[i].y - au[j].y));
+      for (let k = 0; k < pLen; k++) {
+        const p = au[sortedIndices[k]];
+        const pt = targetPts[Math.floor((k * tLen) / pLen)];
+        p.ox = pt.x + (Math.random() - 0.5) * 0.9;
+        p.oy = pt.y + (Math.random() - 0.5) * 0.9;
+        p.returnStartAt = null;
+      }
+      const cx = viewWidth / 2, cy = viewHeight * 0.45;
+      const spinDir = (vx * (touchY - cy) - vy * (touchX - cx)) >= 0 ? 1 : -1;
+      const radius = Math.min(viewWidth, viewHeight) * 0.42;
+      for (let c = 0; c < numCols; c++) {
+        const col = af[c];
+        for (let r = 0; r < numRows; r++) {
+          const cell = col[r], dx = cell.x - cx, dy = cell.y - cy, dist = Math.hypot(dx, dy) || 1;
+          if (dist < radius) {
+            const factor = Math.sin((dist / radius) * Math.PI);
+            const swirlSpeed = factor * 54 * spinDir;
+            const radialSpeed = factor * 24;
+            cell.xv += (-dy / dist) * swirlSpeed + (dx / dist) * radialSpeed + vx * factor * 0.7875;
+            cell.yv += (dx / dist) * swirlSpeed + (dy / dist) * radialSpeed + vy * factor * 0.7875;
+          }
+        }
+      }
+    }
+
+    function initThreeEngine() {
+      viewWidth = window.innerWidth; viewHeight = window.innerHeight;
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setSize(viewWidth, viewHeight, false);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setClearColor(0x000000, 0);
+      scene = new THREE.Scene();
+      const v = viewHeight;
+      const fov = 2 * Math.atan((viewHeight / 2) / v) * (180 / Math.PI);
+      camera = new THREE.PerspectiveCamera(fov, viewWidth / viewHeight, 0.1, 3 * v);
+      camera.position.set(viewWidth / 2, viewHeight / 2, v);
+      camera.lookAt(viewWidth / 2, viewHeight / 2, 0);
+      initFluidGrid(); precomputeAllStages();
+      const initialPts = precomputedStageTargets[0], tLen = initialPts.length;
+      au = []; posArray = new Float32Array(3 * PARTICLE_COUNT); colArray = new Float32Array(3 * PARTICLE_COUNT);
+      const initRGB = STAGES[0].particleRGB; colorCurrent = [...initRGB]; colorTarget = [...initRGB];
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const pt = initialPts[Math.floor((i * tLen) / PARTICLE_COUNT)];
+        const px = pt.x + (Math.random() - 0.5) * 0.9, py = pt.y + (Math.random() - 0.5) * 0.9;
+        au.push(new SujataParticle(px, py));
+        posArray[3 * i] = px; posArray[3 * i + 1] = py; posArray[3 * i + 2] = 0;
+        colArray[3 * i] = initRGB[0]; colArray[3 * i + 1] = initRGB[1]; colArray[3 * i + 2] = initRGB[2];
+      }
+      geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colArray, 3));
+      const ptSize = (window.innerWidth <= 1024 ? 0.55 : 0.8) * Math.min(window.devicePixelRatio || 1, 2);
+      material = new THREE.PointsMaterial({ size: ptSize, sizeAttenuation: false, transparent: true, depthWrite: false, vertexColors: true });
+      pointsMesh = new THREE.Points(geometry, material);
+      pointsMesh.matrixAutoUpdate = false; pointsMesh.frustumCulled = false;
+      scene.add(pointsMesh);
+    }
+
+    const aR = (e) => (e ? e.xv : 0), aP = (e) => (e ? e.yv : 0), aU = (e) => (e ? e.pressure : 0);
+    const PHYSICS_STEP = 1 / 60, MAX_PHYSICS_STEPS = 1;
+    let physicsAcc = 0, simT = ak;
+
+    function renderLoop() {
+      const t = performance.now() * 0.001;
+      const frameDt = Math.min(0.1, Math.max(0, t - ak));
+      ak = t;
+
+      aG.currentX += (aG.targetX - aG.currentX) * 0.08;
+      aG.currentY += (aG.targetY - aG.currentY) * 0.08;
+      if (pointsMesh) {
+        const maxRad = (Math.PI / 180) * 8;
+        const cx = viewWidth / 2, cy = viewHeight / 2;
+        aX.makeTranslation(-cx, -cy, 0); aY.makeTranslation(cx, cy, 0);
+        aq.set(aG.currentY * maxRad, aG.currentX * maxRad, 0); aj.makeRotationFromEuler(aq);
+        pointsMesh.matrix.identity().multiply(aY).multiply(aj).multiply(aK).multiply(aX);
+        pointsMesh.matrixWorldNeedsUpdate = true;
+      }
+
+      const dxPointer = aV.x - aV.px, dyPointer = aV.y - aV.py, moveDist = Math.hypot(dxPointer, dyPointer);
+      if (moveDist > 0) {
+        const steps = Math.max(1, Math.ceil(moveDist / 6));
+        for (let s = 0; s <= steps; s++) {
+          const ratio = s / steps, ix = aV.px + dxPointer * ratio, iy = aV.py + dyPointer * ratio;
+          const minC = Math.max(0, ((ix - 48) / 10) | 0), maxC = Math.min(numCols - 1, ((ix + 48) / 10) | 0);
+          const minR = Math.max(0, ((iy - 48) / 10) | 0), maxR = Math.min(numRows - 1, ((iy + 48) / 10) | 0);
+          for (let c = minC; c <= maxC; c++) {
+            const col = af[c];
+            for (let r = minR; r <= maxR; r++) {
+              const cell = col[r], d = Math.hypot(cell.x - ix, cell.y - iy);
+              if (d < 48) {
+                const falloff = 48 / (d < 4 ? 48 : d);
+                cell.xv += dxPointer * falloff * 2.25;
+                cell.yv += dyPointer * falloff * 2.25;
+              }
+            }
+          }
+        }
+        aw.lastAt = t;
+        mixDistanceAccum += moveDist;
+        if (!hasSwitchedForCurrentMix && mixDistanceAccum > 90) {
+          hasSwitchedForCurrentMix = true;
+          advanceHomeTargetsToNextStage(aV.x, aV.y, dxPointer, dyPointer);
+        }
+      }
+      if (t - aw.lastAt > 0.55) { mixDistanceAccum = 0; hasSwitchedForCurrentMix = false; }
+
+      const dcR = colorTarget[0] - colorCurrent[0], dcG = colorTarget[1] - colorCurrent[1], dcB = colorTarget[2] - colorCurrent[2];
+      if (Math.abs(dcR) > 0.002 || Math.abs(dcG) > 0.002 || Math.abs(dcB) > 0.002) {
+        colorCurrent[0] += dcR * 0.06; colorCurrent[1] += dcG * 0.06; colorCurrent[2] += dcB * 0.06;
+        const rC = colorCurrent[0], gC = colorCurrent[1], bC = colorCurrent[2];
+        for (let i = 0; i < au.length; i++) { colArray[3 * i] = rC; colArray[3 * i + 1] = gC; colArray[3 * i + 2] = bC; }
+        geometry.attributes.color.needsUpdate = true;
+      }
+
+      physicsAcc += frameDt;
+      let physicsSteps = 0;
+      while (physicsAcc >= PHYSICS_STEP * 0.5 && physicsSteps < MAX_PHYSICS_STEPS) {
+        physicsAcc -= PHYSICS_STEP; physicsSteps++; simT += PHYSICS_STEP;
+        const waveN = 0.06 * simT;
+        for (let c = 0; c < af.length; c++) {
+          const col = af[c];
+          for (let r = 0; r < col.length; r++) {
+            const cell = col[r];
+            cell.xv += 0.005 * Math.sin(0.005 * cell.y + waveN);
+            cell.yv += 0.005 * Math.cos(0.005 * cell.x - 1.1 * waveN);
+          }
+        }
+        for (let c = 0; c < af.length; c++) {
+          const col = af[c];
+          for (let r = 0; r < col.length; r++) {
+            const e = col[r];
+            const px = 0.5 * aR(e.up_left) + aR(e.left) + 0.5 * aR(e.down_left) - 0.5 * aR(e.up_right) - aR(e.right) - 0.5 * aR(e.down_right);
+            const py = 0.5 * aP(e.up_left) + aP(e.up) + 0.5 * aP(e.up_right) - 0.5 * aP(e.down_left) - aP(e.down) - 0.5 * aP(e.down_right);
+            e.pressure = (px + py) * 0.25;
+          }
+        }
+        for (let c = 0; c < af.length; c++) {
+          const col = af[c];
+          for (let r = 0; r < col.length; r++) {
+            const e = col[r];
+            e.xv += (0.5 * aU(e.up_left) + aU(e.left) + 0.5 * aU(e.down_left) - 0.5 * aU(e.up_right) - aU(e.right) - 0.5 * aU(e.down_right)) * 0.25;
+            e.yv += (0.5 * aU(e.up_left) + aU(e.up) + 0.5 * aU(e.up_right) - 0.5 * aU(e.down_left) - aU(e.down) - 0.5 * aU(e.down_right)) * 0.25;
+            const mag = Math.hypot(e.xv, e.yv);
+            if (mag > 150) { const sc = 150 / mag; e.xv *= sc; e.yv *= sc; }
+            e.xv *= 0.946; e.yv *= 0.946;
+          }
+        }
+        for (let i = 0; i < au.length; i++) {
+          const a = au[i], s = Math.hypot(a.xv, a.yv);
+          if (s > 0.5) a.returnStartAt = null;
+          else if (a.returnStartAt === null) a.returnStartAt = simT;
+          if (a.returnStartAt !== null) {
+            const n = Math.min(1, (simT - a.returnStartAt) / 0.05);
+            const smooth = n * n * (3 - 2 * n);
+            const pull = 93.75 * PHYSICS_STEP * (0.15 + 0.85 * smooth);
+            a.xv += (a.ox - a.x) * pull; a.yv += (a.oy - a.y) * pull;
+          }
+        }
+        for (let i = 0; i < au.length; i++) {
+          const s = au[i];
+          const cx = Math.min(Math.max(s.x, 0), viewWidth), cy = Math.min(Math.max(s.y, 0), viewHeight);
+          const cell = af[Math.min(numCols - 1, Math.max(0, (cx / 10) | 0))][Math.min(numRows - 1, Math.max(0, (cy / 10) | 0))];
+          const dx = ((s.x % 10) + 10) % 10 / 10, dy = ((s.y % 10) + 10) % 10 / 10;
+          const rc = cell.right || cell, dc = cell.down || cell;
+          s.xv += (1 - dx) * cell.xv * 0.09 + dx * rc.xv * 0.09 + dy * dc.xv * 0.09;
+          s.yv += (1 - dy) * cell.yv * 0.09 + dx * rc.yv * 0.09 + dy * dc.yv * 0.09;
+          const spd = Math.hypot(s.xv, s.yv), maxSpd = s.returnStartAt !== null ? 56.25 : 67.5;
+          if (spd > maxSpd) { const sc = maxSpd / (spd || 1); s.xv *= sc; s.yv *= sc; }
+          s.x += s.xv; s.y += s.yv;
+          posArray[3 * i] = s.x; posArray[3 * i + 1] = s.y;
+          s.xv *= 0.4; s.yv *= 0.4;
+        }
+      }
+      if (physicsSteps >= MAX_PHYSICS_STEPS && physicsAcc > PHYSICS_STEP * 0.5) physicsAcc = 0;
+      if (physicsSteps > 0) geometry.attributes.position.needsUpdate = true;
+
+      aV.px = aV.x; aV.py = aV.y;
+      renderer.render(scene, camera);
+      requestAnimationFrame(renderLoop);
+    }
+
+    let pointerDownPos = null;
+    overlay.addEventListener('mousedown', (e) => { pointerDownPos = { x: e.clientX, y: e.clientY }; });
+    overlay.addEventListener('mouseup', (e) => {
+      if (!pointerDownPos) return;
+      const move = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+      pointerDownPos = null;
+      if (move < 10 && performance.now() - lastStageSwitchAt > 900) {
+        const hit = getHitButton(e.clientX, e.clientY);
+        if (hit) window.location.href = hit.url;
+      }
+    });
+    overlay.addEventListener('mousemove', (e) => {
+      if (aV.x === -9999) { aV.px = e.clientX; aV.py = e.clientY; } else { aV.px = aV.x; aV.py = aV.y; }
+      aV.x = e.clientX; aV.y = e.clientY;
+      aG.targetX = (e.clientX / viewWidth - 0.5) * 2; aG.targetY = (e.clientY / viewHeight - 0.5) * 2;
+      overlay.style.cursor = getHitButton(e.clientX, e.clientY) ? 'pointer' : 'crosshair';
+    });
+    overlay.addEventListener('mouseleave', () => {
+      pointerDownPos = null; aV.x = aV.px = -9999; aV.y = aV.py = -9999;
+      aG.targetX = 0; aG.targetY = 0; mixDistanceAccum = 0; hasSwitchedForCurrentMix = false;
+    });
+    overlay.addEventListener('touchstart', (e) => {
+      e.preventDefault(); const t = e.touches[0];
+      pointerDownPos = { x: t.clientX, y: t.clientY };
+      aV.x = aV.px = t.clientX; aV.y = aV.py = t.clientY;
+      mixDistanceAccum = 0; hasSwitchedForCurrentMix = false;
+    }, { passive: false });
+    overlay.addEventListener('touchmove', (e) => {
+      e.preventDefault(); const t = e.touches[0];
+      aV.px = aV.x; aV.py = aV.y; aV.x = t.clientX; aV.y = t.clientY;
+    }, { passive: false });
+    overlay.addEventListener('touchend', (e) => {
+      const t = e.changedTouches && e.changedTouches[0];
+      if (pointerDownPos && t) {
+        const move = Math.hypot(t.clientX - pointerDownPos.x, t.clientY - pointerDownPos.y);
+        if (move < 12 && performance.now() - lastStageSwitchAt > 900) {
+          const hit = getHitButton(t.clientX, t.clientY);
+          if (hit) { window.location.href = hit.url; return; }
+        }
+      }
+      pointerDownPos = null; aV.x = aV.px = -9999; aV.y = aV.py = -9999;
+      mixDistanceAccum = 0; hasSwitchedForCurrentMix = false;
+    });
+
+    let resizeTimeout = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        viewWidth = window.innerWidth; viewHeight = window.innerHeight;
+        renderer.setSize(viewWidth, viewHeight, false);
+        const v = viewHeight;
+        camera.fov = 2 * Math.atan((viewHeight / 2) / v) * (180 / Math.PI);
+        camera.aspect = viewWidth / viewHeight;
+        camera.position.set(viewWidth / 2, viewHeight / 2, v);
+        camera.lookAt(viewWidth / 2, viewHeight / 2, 0);
+        camera.updateProjectionMatrix();
+        initFluidGrid(); precomputeAllStages();
+        const targetPts = precomputedStageTargets[currentStage], tLen = targetPts.length;
+        for (let i = 0; i < au.length; i++) {
+          const pt = targetPts[Math.floor((i * tLen) / au.length)];
+          au[i].ox = au[i].x = pt.x; au[i].oy = au[i].y = pt.y;
+          posArray[3 * i] = au[i].x; posArray[3 * i + 1] = au[i].y;
+        }
+        geometry.attributes.position.needsUpdate = true;
+      }, 200);
+    });
+
+    document.fonts.ready.then(() => {
+      initThreeEngine();
+      const stageParam = parseInt(new URLSearchParams(window.location.search).get('stage'), 10);
+      if (stageParam >= 1 && stageParam <= STAGES.length) {
+        currentStage = stageParam - 1;
+        const targetPts = precomputedStageTargets[currentStage], tLen = targetPts.length;
+        for (let i = 0; i < au.length; i++) {
+          const pt = targetPts[Math.floor((i * tLen) / au.length)];
+          au[i].ox = au[i].x = pt.x + (Math.random() - 0.5) * 0.9;
+          au[i].oy = au[i].y = pt.y + (Math.random() - 0.5) * 0.9;
+          posArray[3 * i] = au[i].x; posArray[3 * i + 1] = au[i].y;
+        }
+        geometry.attributes.position.needsUpdate = true;
+        const initRGB = STAGES[currentStage].particleRGB;
+        colorCurrent = [...initRGB]; colorTarget = [...initRGB];
+        for (let i = 0; i < au.length; i++) {
+          colArray[3 * i] = initRGB[0]; colArray[3 * i + 1] = initRGB[1]; colArray[3 * i + 2] = initRGB[2];
+        }
+        geometry.attributes.color.needsUpdate = true;
+      }
+      updateStageUI(currentStage);
+      requestAnimationFrame(renderLoop);
+    });
+  </script>
+</body>
+</html>
