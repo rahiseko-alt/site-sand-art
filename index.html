@@ -585,10 +585,21 @@
     const aP = (e) => (e ? e.yv : 0);
     const aU = (e) => (e ? e.pressure : 0);
 
+    // Fixed physics timestep: every per-step constant (0.99 / 0.4 / 0.09 / spring) was tuned at 60fps.
+    // Running the physics in fixed 1/60s steps keeps the spring gain (93.75 * STEP = 1.5625) constant,
+    // far below the explicit-integration divergence limit (2.8), even when a frame takes longer.
+    const PHYSICS_STEP = 1 / 60;
+    // Max 1 step per frame: one 140k-particle step costs close to a full frame, so catch-up steps
+    // made frames longer -> more steps -> spiral (measured 17.6ms -> 59.7ms median). On slow frames
+    // the sim runs slightly slower instead of diverging.
+    const MAX_PHYSICS_STEPS = 1;
+    let physicsAcc = 0;
+    let simT = ak;
+
     // 100% Authentic Original Fluid Physics + Return Spring Loop from 044nib_tuote3.js!
     function renderLoop() {
       const t = performance.now() * 0.001;
-      const dt = Math.min(0.05, t - ak);
+      const frameDt = Math.min(0.1, Math.max(0, t - ak));
       ak = t;
 
       // 1. 3D Tilt matrix update (exact math from 044nib_tuote3.js)
@@ -672,8 +683,18 @@
         geometry.attributes.color.needsUpdate = true;
       }
 
+      // 4-6. Physics in fixed 1/60s steps (pointer injection above stays per-frame, as before)
+      physicsAcc += frameDt;
+      let physicsSteps = 0;
+      // Round to the nearest step count (threshold = half a step) so ordinary ~16.6ms vsync frames
+      // always get exactly one step instead of alternating 0/2 steps due to timer noise.
+      while (physicsAcc >= PHYSICS_STEP * 0.5 && physicsSteps < MAX_PHYSICS_STEPS) {
+      physicsAcc -= PHYSICS_STEP;
+      physicsSteps++;
+      simT += PHYSICS_STEP;
+
       // 4. Exact 10px Fluid Grid Simulation from 044nib_tuote3.js
-      const waveN = 0.06 * t;
+      const waveN = 0.06 * simT;
       for (let c = 0; c < af.length; c++) {
         const col = af[c];
         for (let r = 0; r < col.length; r++) {
@@ -719,12 +740,12 @@
         if (s > 0.5) {
           a.returnStartAt = null;
         } else if (a.returnStartAt === null) {
-          a.returnStartAt = t;
+          a.returnStartAt = simT;
         }
         if (a.returnStartAt !== null) {
-          const n = Math.min(1, (t - a.returnStartAt) / 0.05);
+          const n = Math.min(1, (simT - a.returnStartAt) / 0.05);
           const smooth = n * n * (3 - 2 * n);
-          const pull = 93.75 * dt * (0.15 + 0.85 * smooth);
+          const pull = 93.75 * PHYSICS_STEP * (0.15 + 0.85 * smooth);
           a.xv += (a.ox - a.x) * pull;
           a.yv += (a.oy - a.y) * pull;
         }
@@ -765,7 +786,15 @@
         s.xv *= 0.4;
         s.yv *= 0.4;
       }
-      geometry.attributes.position.needsUpdate = true;
+      }
+      // If the frame was so long that the step cap was hit, drop the backlog instead of
+      // spiralling (the sim simply runs slower on very slow frames rather than diverging).
+      if (physicsSteps >= MAX_PHYSICS_STEPS && physicsAcc > PHYSICS_STEP * 0.5) {
+        physicsAcc = 0;
+      }
+      if (physicsSteps > 0) {
+        geometry.attributes.position.needsUpdate = true;
+      }
 
       aV.px = aV.x;
       aV.py = aV.y;
