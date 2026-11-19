@@ -724,7 +724,7 @@
         if (a.returnStartAt !== null) {
           const n = Math.min(1, (t - a.returnStartAt) / 0.05);
           const smooth = n * n * (3 - 2 * n);
-          const pull = 50 * dt * (0.15 + 0.85 * smooth);
+          const pull = 75 * dt * (0.15 + 0.85 * smooth);
           a.xv += (a.ox - a.x) * pull;
           a.yv += (a.oy - a.y) * pull;
         }
@@ -751,8 +751,8 @@
         s.yv += dy * downCell.yv * 0.06;
 
         const spd = Math.hypot(s.xv, s.yv);
-        if (spd > 30) {
-          const sc = 30 / (spd || 1);
+        if (spd > 45) {
+          const sc = 45 / (spd || 1);
           s.xv *= sc;
           s.yv *= sc;
         }
