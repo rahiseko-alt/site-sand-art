@@ -216,12 +216,18 @@
         bg: "#0e0c0a",
         uiColor: "#f5e6d3",
         particleRGB: [0.95, 0.87, 0.75],
-        draw(ctx, w, h) {
+        getButtons(w, h) {
           const isMobile = w < 768;
           const cardW = isMobile ? Math.min(w * 0.82, 300) : 380;
           const cardH = isMobile ? 380 : 460;
           const x = (w - cardW) / 2;
           const y = h * 0.48 - cardH / 2;
+          return [{ x, y, w: cardW, h: cardH, url: "./mix.html", label: "ORIGINAL MIX" }];
+        },
+        draw(ctx, w, h) {
+          const isMobile = w < 768;
+          const b = this.getButtons(w, h)[0];
+          const { x, y, w: cardW, h: cardH } = b;
 
           ctx.lineWidth = isMobile ? 10 : 14;
           ctx.strokeStyle = "#fff";
@@ -252,24 +258,20 @@
         bg: "#f2efe9",
         uiColor: "#181512",
         particleRGB: [0.12, 0.09, 0.07],
-        draw(ctx, w, h) {
+        getButtons(w, h) {
           const isMobile = w < 768;
+          const urls = ["./coffee.html", "./culture.html", "./rituals.html"];
+          const titles = ["COFFEE", "CULTURE", "RITUALS"];
+          const nums = ["01", "02", "03"];
+          const buttons = [];
           if (isMobile) {
             const cw = Math.min(w * 0.84, 310);
             const ch = 92;
             const gap = 20;
             const startY = h * 0.48 - (ch * 3 + gap * 2) / 2;
-            const labels = ["01  COFFEE", "02  CULTURE", "03  RITUALS"];
+            const cx = (w - cw) / 2;
             for (let i = 0; i < 3; i++) {
-              const cy = startY + i * (ch + gap);
-              ctx.lineWidth = 8;
-              ctx.strokeStyle = "#fff";
-              drawRoundRect(ctx, (w - cw) / 2, cy, cw, ch, 16);
-              ctx.stroke();
-              ctx.font = `900 25px "SF Pro", sans-serif`;
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              ctx.fillText(labels[i], w / 2, cy + ch / 2);
+              buttons.push({ x: cx, y: startY + i * (ch + gap), w: cw, h: ch, url: urls[i], num: nums[i], title: titles[i] });
             }
           } else {
             const cw = Math.min((w * 0.8) / 3, 260);
@@ -278,20 +280,37 @@
             const totalW = cw * 3 + gap * 2;
             const startX = (w - totalW) / 2;
             const cy = h * 0.48 - ch / 2;
-            const titles = ["COFFEE", "CULTURE", "RITUALS"];
-            const nums = ["01", "02", "03"];
             for (let i = 0; i < 3; i++) {
-              const cx = startX + i * (cw + gap);
+              buttons.push({ x: startX + i * (cw + gap), y: cy, w: cw, h: ch, url: urls[i], num: nums[i], title: titles[i] });
+            }
+          }
+          return buttons;
+        },
+        draw(ctx, w, h) {
+          const isMobile = w < 768;
+          const buttons = this.getButtons(w, h);
+          for (let i = 0; i < buttons.length; i++) {
+            const b = buttons[i];
+            if (isMobile) {
+              ctx.lineWidth = 8;
+              ctx.strokeStyle = "#fff";
+              drawRoundRect(ctx, b.x, b.y, b.w, b.h, 16);
+              ctx.stroke();
+              ctx.font = `900 25px "SF Pro", sans-serif`;
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(`${b.num}  ${b.title}`, b.x + b.w / 2, b.y + b.h / 2);
+            } else {
               ctx.lineWidth = 10;
               ctx.strokeStyle = "#fff";
-              drawRoundRect(ctx, cx, cy, cw, ch, 20);
+              drawRoundRect(ctx, b.x, b.y, b.w, b.h, 20);
               ctx.stroke();
               ctx.font = `900 42px "SF Pro", sans-serif`;
               ctx.textAlign = "center";
               ctx.textBaseline = "middle";
-              ctx.fillText(nums[i], cx + cw / 2, cy + ch * 0.36);
+              ctx.fillText(b.num, b.x + b.w / 2, b.y + b.h * 0.36);
               ctx.font = `800 26px "SF Pro", sans-serif`;
-              ctx.fillText(titles[i], cx + cw / 2, cy + ch * 0.72);
+              ctx.fillText(b.title, b.x + b.w / 2, b.y + b.h * 0.72);
             }
           }
         }
@@ -452,13 +471,29 @@
       precomputedStageTargets = STAGES.map((_, idx) => sampleStagePoints(idx));
     }
 
+    function getHitButton(x, y) {
+      const st = STAGES[currentStage];
+      if (!st || !st.getButtons) return null;
+      const btns = st.getButtons(viewWidth, viewHeight);
+      for (let i = 0; i < btns.length; i++) {
+        const b = btns[i];
+        if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return b;
+      }
+      return null;
+    }
+
+    const DEFAULT_HINT = '指やマウスで文字を触って混ぜる（スジャータする）たびに、混ざった砂が「次の違う文字」になって浮かび上がります';
+    const CARD_HINT = 'カードをクリック／タップで別ページへ移動します（ドラッグで混ぜると次の形へ）';
+
     function updateStageUI(stageIdx) {
       const st = STAGES[stageIdx];
       bgLayer.style.backgroundColor = st.bg;
       uiHeader.style.color = st.uiColor;
       bottomHint.style.color = st.uiColor;
+      bottomHint.textContent = st.getButtons ? CARD_HINT : DEFAULT_HINT;
       stageBadge.textContent = `0${stageIdx + 1} / 0${STAGES.length}`;
       colorTarget = [...st.particleRGB];
+      if (!st.getButtons) overlay.style.cursor = 'crosshair';
     }
 
     /**
@@ -803,7 +838,23 @@
       requestAnimationFrame(renderLoop);
     }
 
-    // Pointer listeners: NO scroll, ONLY mixing (Sujata)!
+    let pointerDownPos = null;
+
+    // Pointer listeners: NO scroll, ONLY mixing (Sujata) + click/tap on stage cards!
+    overlay.addEventListener('mousedown', (e) => {
+      pointerDownPos = { x: e.clientX, y: e.clientY };
+    });
+
+    overlay.addEventListener('mouseup', (e) => {
+      if (!pointerDownPos) return;
+      const move = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+      pointerDownPos = null;
+      if (move < 10 && performance.now() - lastStageSwitchAt > 900) {
+        const hit = getHitButton(e.clientX, e.clientY);
+        if (hit) window.location.href = hit.url;
+      }
+    });
+
     overlay.addEventListener('mousemove', (e) => {
       if (aV.x === -9999) {
         aV.px = e.clientX;
@@ -816,9 +867,11 @@
       aV.y = e.clientY;
       aG.targetX = (e.clientX / viewWidth - 0.5) * 2;
       aG.targetY = (e.clientY / viewHeight - 0.5) * 2;
+      overlay.style.cursor = getHitButton(e.clientX, e.clientY) ? 'pointer' : 'crosshair';
     });
 
     overlay.addEventListener('mouseleave', () => {
+      pointerDownPos = null;
       aV.x = aV.px = -9999;
       aV.y = aV.py = -9999;
       aG.targetX = 0;
@@ -830,6 +883,7 @@
     overlay.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const touch = e.touches[0];
+      pointerDownPos = { x: touch.clientX, y: touch.clientY };
       aV.x = aV.px = touch.clientX;
       aV.y = aV.py = touch.clientY;
       mixDistanceAccum = 0;
@@ -845,7 +899,19 @@
       aV.y = touch.clientY;
     }, { passive: false });
 
-    overlay.addEventListener('touchend', () => {
+    overlay.addEventListener('touchend', (e) => {
+      const touch = e.changedTouches && e.changedTouches[0];
+      if (pointerDownPos && touch) {
+        const move = Math.hypot(touch.clientX - pointerDownPos.x, touch.clientY - pointerDownPos.y);
+        if (move < 12 && performance.now() - lastStageSwitchAt > 900) {
+          const hit = getHitButton(touch.clientX, touch.clientY);
+          if (hit) {
+            window.location.href = hit.url;
+            return;
+          }
+        }
+      }
+      pointerDownPos = null;
       aV.x = aV.px = -9999;
       aV.y = aV.py = -9999;
       mixDistanceAccum = 0;
@@ -882,7 +948,30 @@
 
     document.fonts.ready.then(() => {
       initThreeEngine();
-      updateStageUI(0);
+      const stageParam = parseInt(new URLSearchParams(window.location.search).get('stage'), 10);
+      if (stageParam >= 1 && stageParam <= STAGES.length) {
+        currentStage = stageParam - 1;
+        const targetPts = precomputedStageTargets[currentStage];
+        const tLen = targetPts.length;
+        for (let i = 0; i < au.length; i++) {
+          const pt = targetPts[Math.floor((i * tLen) / au.length)];
+          au[i].ox = au[i].x = pt.x + (Math.random() - 0.5) * 0.9;
+          au[i].oy = au[i].y = pt.y + (Math.random() - 0.5) * 0.9;
+          posArray[3 * i] = au[i].x;
+          posArray[3 * i + 1] = au[i].y;
+        }
+        geometry.attributes.position.needsUpdate = true;
+        const initRGB = STAGES[currentStage].particleRGB;
+        colorCurrent = [...initRGB];
+        colorTarget = [...initRGB];
+        for (let i = 0; i < au.length; i++) {
+          colArray[3 * i] = initRGB[0];
+          colArray[3 * i + 1] = initRGB[1];
+          colArray[3 * i + 2] = initRGB[2];
+        }
+        geometry.attributes.color.needsUpdate = true;
+      }
+      updateStageUI(currentStage);
       requestAnimationFrame(renderLoop);
     });
   </script>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>ORIGINAL MIX — 砂の配合ラボ | SUNAGA GURUGURU</title>
+  <style>
+    @font-face { font-family: 'SF Pro'; src: url('./font/SF-Pro-Subset.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0e0c0a; color: #f5e6d3; font-family: 'SF Pro', -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+    header { position: fixed; top: 0; left: 0; right: 0; height: 68px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; z-index: 10; }
+    .back { color: #f5e6d3; text-decoration: none; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; padding: 8px 14px; border: 1px solid rgba(245,230,211,0.26); border-radius: 999px; background: rgba(14,12,10,0.7); backdrop-filter: blur(8px); }
+    .back:hover { background: rgba(245,230,211,0.14); }
+    .nav { display: flex; gap: 12px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; }
+    .nav a { color: rgba(245,230,211,0.55); text-decoration: none; }
+    .nav a.active, .nav a:hover { color: #f5e6d3; }
+    .panel { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); width: min(92vw, 440px); padding: 18px 22px; border-radius: 20px; border: 1px solid rgba(245,230,211,0.2); background: rgba(20,16,13,0.78); backdrop-filter: blur(12px); z-index: 10; }
+    .panel h1 { font-size: 14px; font-weight: 800; letter-spacing: 0.16em; margin-bottom: 12px; color: #f5e6d3; }
+    .row { display: grid; grid-template-columns: 78px 1fr 40px; align-items: center; gap: 12px; margin-bottom: 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; }
+    .row:last-child { margin-bottom: 0; }
+    input[type=range] { accent-color: #d4a373; width: 100%; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <canvas id="lab"></canvas>
+  <header>
+    <a class="back" href="./index.html?stage=4">← BACK</a>
+    <nav class="nav">
+      <a href="./coffee.html">01 COFFEE</a>
+      <a href="./culture.html">02 CULTURE</a>
+      <a href="./rituals.html">03 RITUALS</a>
+      <a class="active" href="./mix.html">MIX</a>
+    </nav>
+  </header>
+  <div class="panel">
+    <h1>ORIGINAL MIX — BLEND LAB</h1>
+    <div class="row"><span>ROAST</span><input id="roast" type="range" min="0" max="100" value="45"><span id="roastVal">45</span></div>
+    <div class="row"><span>SWIRL</span><input id="swirl" type="range" min="1" max="100" value="40"><span id="swirlVal">40</span></div>
+    <div class="row"><span>GRAIN</span><input id="grain" type="range" min="1" max="6" step="0.5" value="2"><span id="grainVal">2</span></div>
+  </div>
+  <script>
+    const canvas = document.getElementById('lab');
+    const ctx = canvas.getContext('2d');
+    const N = 1600;
+    const pts = Array.from({ length: N }, () => ({
+      a: Math.random() * Math.PI * 2,
+      r: 20 + Math.random() * 220,
+      s: 0.5 + Math.random()
+    }));
+    const roastEl = document.getElementById('roast');
+    const swirlEl = document.getElementById('swirl');
+    const grainEl = document.getElementById('grain');
+
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function loop() {
+      const roast = Number(roastEl.value);
+      const swirl = Number(swirlEl.value);
+      const grain = Number(grainEl.value);
+      document.getElementById('roastVal').textContent = roast;
+      document.getElementById('swirlVal').textContent = swirl;
+      document.getElementById('grainVal').textContent = grain;
+
+      ctx.fillStyle = 'rgba(14,12,10,0.22)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const r = Math.round(245 - roast * 1.15);
+      const g = Math.round(224 - roast * 1.35);
+      const b = Math.round(196 - roast * 1.45);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+
+      const cx = canvas.width / 2, cy = canvas.height * 0.43;
+      const scale = Math.min(canvas.width, canvas.height) / 620;
+      for (let i = 0; i < N; i++) {
+        const p = pts[i];
+        p.a += (swirl * 0.0008) * (260 / (p.r + 40)) * p.s;
+        const x = cx + Math.cos(p.a) * p.r * scale;
+        const y = cy + Math.sin(p.a) * p.r * scale;
+        ctx.fillRect(x, y, grain, grain);
+      }
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
